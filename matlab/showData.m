@@ -16,7 +16,7 @@ Data_hourly = [];
 
 %Averaging per hour
 for i = 1:rows/4
-    Data_hourly(i,:) = mean(Data(i*4-3:i*4,:));
+    Data_hourly(i,:) = mean(Data(i*4-3:i*4,cols));
 end
 
 figure
