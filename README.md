@@ -1,6 +1,13 @@
 # Power Market Price Forecasting
 EECE5644 Machine Learning Final Project
 
+#Tensorflow Branch
+Using LSTM RNN on power market data
+
+Helpful Links so far:
+* https://lilianweng.github.io/lil-log/2017/07/08/predict-stock-prices-using-RNN-part-1.html#overview-of-existing-tutorials
+* https://www.tensorflow.org/tutorials/
+
 #### Team Members
 * Colin Vincent vincent.co@husky.neu.edu
 * Drew HasBrouck hasbrouck.d@husky.neu.edu
