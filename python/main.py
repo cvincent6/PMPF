@@ -18,6 +18,8 @@ import statsmodels.api as sm
 import statsmodels.tsa.stattools as st
 import itertools
 
+print "Starting Wavelet------"
+
 root = r'dataset/'
 
 training_data = pandas.read_csv(root + 'training.csv')
