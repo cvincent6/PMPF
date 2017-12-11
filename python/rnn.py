@@ -4,6 +4,11 @@
 ## Adapted from stock price prediction example:
 ## https://lilianweng.github.io/lil-log/2017/07/08
 ##   /predict-stock-prices-using-RNN-part-1.html#overview-of-existing-tutorials
+
+## Use virtualenv!
+## $ source ~/tensorflow/bin/activate
+## $ deactivate
+
 from RNNConfig import RNNConfig
 import numpy as np 
 import pandas as pd 
