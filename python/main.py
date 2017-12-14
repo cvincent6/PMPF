@@ -1,66 +1,152 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Nov 19 18:56:08 2017
+## Colin Vincent
+## Machine Learning 
+## LSTM for Power Market Price Prediction
+## December 14, 2017
 
-@author: Gautham
+import os
+import time
+import numpy as np 
+import pandas as pd 
+import csv
+import warnings
+
+from keras.layers.core import Dense, Activation, Dropout
+from keras.layers.recurrent import LSTM
+from keras.models import Sequential
+
+from numpy import newaxis
+
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+
+## Hiding Warnings from Tensorfow etc
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+warnings.filterwarnings("ignore")
+
+## Global Variables
+TIME_LENGTH = 24
+EPOCHS = 50
+RATIO = 0.5
+LAYERS = [1, 50, 100, 1]
+VALIDATION_SPLIT = 0.05
+
+## ----------- Reading in Dataset -----------
+
+file_name = 'dataset/training.csv'
+
+with open(file_name) as file:
+        dataset = csv.reader(file, delimiter=",")
+
+        # Dataset has power and load info
+        power = []
+        load = []
+
+        num_values = 0
+
+        for line in dataset:
+            try:
+                power.append(float(line[0]))
+                load.append(float(line[1]))
+                num_values += 1
+            except ValueError:
+                print "Cound't pull data at index: " + str()
+
+data = []
+
+## Plotting dataset
+print "Read Data!"
+print "Plotting..."
+
+fig = plt.figure()
+#plt.subplot(2,1,1)
+#plt.plot(power)
+#plt.title('Full Year Power Price Data')
+#plt.show()
+
+for index in range(len(power) - TIME_LENGTH):
+    data.append(power[index: index + TIME_LENGTH])
+
+data = np.array(data)
+
+## Shift by the mean to center around zero
+data -= data.mean()
+print "Shifted Data by: " + str(data.mean())
 
 
-"""
+## Separating data into Train and Test for LSTM
+row = int(round(0.9 * data.shape[0]))
+train = data[:row, :]
+np.random.shuffle(train)
 
-import pandas
-import pywt
-from pandas.tools.plotting import autocorrelation_plot
-from statsmodels.tsa.arima_model import ARIMA
-from statsmodels.graphics.tsaplots import plot_pacf
-#from statsmodels.tsa.statespace import SARIMAX
-import statsmodels.api as sm
-import statsmodels.tsa.stattools as st
-import itertools
+X_train = train[:, :-1]
+y_train = train[:, -1]
+X_test = data[row:, :-1]
+y_test = data[row:, -1]
 
-print "Starting Wavelet------"
+X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
+X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
 
-root = r'dataset/'
+## ----------- Defining Model -----------
 
-training_data = pandas.read_csv(root + 'training.csv')
-training_price = training_data.loc[:,'price']
-training_load= training_data.loc[:,'load']
-#training_temp = training_data.loc[:,'temp']
+model = Sequential()
 
-''' Wavelet transform'''
-db = pywt.Wavelet('db5')
-[price,load] = [[],[]] # initialize wavelet transform vatiables
+model.add(LSTM(
+    input_dim=LAYERS[0],
+    output_dim=LAYERS[1],
+    return_sequences=True))
 
-price = pywt.wavedec(training_price,db,level = 3)
-load = pywt.wavedec(training_load,db,level =3)
+model.add(Dropout(0.2))
 
-''' step to estimate p,q,d for arima model?'''
+model.add(LSTM(
+    LAYERS[2],
+    return_sequences=False))
 
+model.add(Dropout(0.2))
 
-#p = d = q = range(0, 4)
-#pdq = list(itertools.product(p, d, q))
-#seasonal_pdq = [(x[0], x[1], x[2], 24) for x in list(itertools.product(p, d, q))]
-#
-##warnings.filterwarnings("ignore") # specify to ignore warning messages
-#
-#for param in pdq:
-#    for param_seasonal in seasonal_pdq:
-#        try:
-#            mod = sm.tsa.statespace.SARIMAX(price[0],
-#                                            order=param,
-#                                            seasonal_order=param_seasonal,
-#                                            enforce_stationarity=False,
-#                                            enforce_invertibility=False)
-#
-#            results = mod.fit()
-#
-#            print('ARIMA{}x{}12 - AIC:{}'.format(param, param_seasonal, results.aic))
-##            print results.summary()
-#        except:
-#            continue
-#
+model.add(Dense(
+        output_dim=LAYERS[3]))
 
+## Linear activation since regression
+model.add(Activation("linear"))
 
+s = time.time()
 
+## Calculating Loss with Mean Squared Error
+model.compile(loss="mse", optimizer="rmsprop")
 
+print "Compiled in: ", time.time() - s
 
+## ----------- Running LSTM -----------
+
+try:
+    model.fit(
+        X_train, y_train,
+        batch_size=len(power)/TIME_LENGTH, nb_epoch=EPOCHS, validation_split=VALIDATION_SPLIT)
+    predicted = model.predict(X_test)
+    predicted = np.reshape(predicted, (predicted.size,))
+
+except KeyboardInterrupt:
+    print 'Trained in: ', time.time() - s
+
+#print len(y_test)
+#print len(predicted)
+
+try:
+
+    x = predicted[:TIME_LENGTH]
+    y = y_test[:TIME_LENGTH]
+    mean = data.mean()
+
+    predicted2 = [x+1 for x in x]
+    y_test2 = [y+1 for y in y]
+
+    plt.title('24 Hour Prediction using LSTM')
+    plt.plot()
+    plt.plot(predicted2)
+    plt.plot(y_test2)
+    plt.legend(['Predicted Price','Actual Price'])
+
+    plt.show()
+
+except Exception as exception:
+    print str(exception)

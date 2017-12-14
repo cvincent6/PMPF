@@ -1,4 +1,7 @@
 ## Colin Vincent
+## Machine Learning 
+## LSTM for Power Market Price Prediction
+## December 14, 2017
 
 import os
 import time
@@ -7,107 +10,144 @@ import pandas as pd
 import csv
 import warnings
 
-from numpy import newaxis
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 
+from numpy import newaxis
+
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' #Hide messy TensorFlow warnings
-warnings.filterwarnings("ignore") #Hide messy Numpy warnings
+## Hiding Warnings from Tensorfow etc
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+warnings.filterwarnings("ignore")
 
-# Data
+## Global Variables
+TIME_LENGTH = 24
+EPOCHS = 10
+RATIO = 0.5
+LAYERS = [1, 50, 100, 1]
+VALIDATION_SPLIT = 0.05
 
-file = 'dataset/training.csv'
+## ----------- Reading in Dataset -----------
 
-with open(file) as f:
-        data = csv.reader(f, delimiter=",")
+file_name = 'dataset/training.csv'
+
+with open(file_name) as file:
+        dataset = csv.reader(file, delimiter=",")
+
+        # Dataset has power and load info
         power = []
-        nb_of_values = 0
-        for line in data:
+        load = []
+
+        num_values = 0
+
+        for line in dataset:
             try:
                 power.append(float(line[0]))
-                nb_of_values += 1
+                load.append(float(line[1]))
+                num_values += 1
             except ValueError:
-                pass
+                print "Cound't pull data at index: " + str()
 
-result = []
+data = []
 
-for index in range(len(power) - 24):
-    result.append(power[index: index + 24])
+## Plotting dataset
+print "Read Data!"
+print "Plotting..."
 
-result = np.array(result)  # shape (2049230, 50)
+fig = plt.figure()
+plt.subplot(2,1,1)
+plt.plot(power)
+plt.title('Full Year Power Price Data')
+#plt.show()
 
-result_mean = result.mean()
-result -= result_mean
-print "Shift : ", result_mean
-print "Data  : ", result.shape
+for index in range(len(power) - TIME_LENGTH):
+    data.append(power[index: index + TIME_LENGTH])
 
-row = int(round(0.9 * result.shape[0]))
-train = result[:row, :]
+data = np.array(data)
+
+## Shift by the mean to center around zero
+data -= data.mean()
+print "Shifted Data by: " + str(data.mean())
+
+
+## Separating data into Train and Test for LSTM
+row = int(round(0.9 * data.shape[0]))
+train = data[:row, :]
 np.random.shuffle(train)
 
 X_train = train[:, :-1]
 y_train = train[:, -1]
-X_test = result[row:, :-1]
-y_test = result[row:, -1]
+X_test = data[row:, :-1]
+y_test = data[row:, -1]
 
 X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
 X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
 
+## ----------- Defining Model -----------
+
 model = Sequential()
-layers = [1, 50, 100, 1]
 
 model.add(LSTM(
-    input_dim=layers[0],
-    output_dim=layers[1],
+    input_dim=LAYERS[0],
+    output_dim=LAYERS[1],
     return_sequences=True))
 
 model.add(Dropout(0.2))
 
 model.add(LSTM(
-    layers[2],
+    LAYERS[2],
     return_sequences=False))
 
 model.add(Dropout(0.2))
 
 model.add(Dense(
-        output_dim=layers[3]))
+        output_dim=LAYERS[3]))
 
+## Linear activation since regression
 model.add(Activation("linear"))
 
-start = time.time()
+s = time.time()
+
+## Calculating Loss with Mean Squared Error
 model.compile(loss="mse", optimizer="rmsprop")
 
-print "Compilation Time : ", time.time() - start
+print "Compiled in: ", time.time() - s
 
-## ---------- Running NN
-
-epochs = 100
-ratio = 0.5
-
-if model is None:
-    model = build_model()
+## ----------- Running LSTM -----------
 
 try:
-	model.fit(
-	    X_train, y_train,
-	    batch_size=len(power)/24, nb_epoch=epochs, validation_split=0.05)
-	predicted = model.predict(X_test)
-	predicted = np.reshape(predicted, (predicted.size,))
+    model.fit(
+        X_train, y_train,
+        batch_size=len(power)/TIME_LENGTH, nb_epoch=EPOCHS, validation_split=VALIDATION_SPLIT)
+    predicted = model.predict(X_test)
+    predicted = np.reshape(predicted, (predicted.size,))
 
 except KeyboardInterrupt:
-	print 'Training duration (s) : ', time.time() - global_start_time
+    print 'Trained in: ', time.time() - s
 
-print len(y_test)
-print len(predicted)
+#print len(y_test)
+#print len(predicted)
 
 try:
-    fig = plt.figure()
-    plt.plot(predicted[:24])
-    plt.plot(y_test[:24])
-    plt.legend()
+
+    x = predicted[:TIME_LENGTH]
+    y = y_test[:TIME_LENGTH]
+    mean = data.mean()
+
+    predicted2 = [x+1 for x in my_list]
+    y_test2 = [y+1 for y in my_list]
+
+    plt.subplot(2,1,2)
+    plt.title('24 Hour Prediction using LSTM')
+    plt.plot()
+    plt.plot(predicted2)
+    plt.plot(y_test2)
+    plt.legend(['Predicted Price','Actual Price'])
+
     plt.show()
-except Exception as e:
-    print str(e)
+
+except Exception as exception:
+    print str(exception)
