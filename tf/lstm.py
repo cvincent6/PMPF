@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd 
 import csv
 
-from numpy import newaxis
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential

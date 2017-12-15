@@ -3,6 +3,9 @@
 ## LSTM for Power Market Price Prediction
 ## December 14, 2017
 
+## Adapted from:
+## http://www.jakob-aungiers.com/articles/a/LSTM-Neural-Network-for-Time-Series-Prediction
+
 import os
 import time
 import numpy as np 
@@ -68,9 +71,11 @@ for index in range(len(power) - TIME_LENGTH):
 
 data = np.array(data)
 
+datamean = data.mean()
+
 ## Shift by the mean to center around zero
-data -= data.mean()
-print "Shifted Data by: " + str(data.mean())
+data -= datamean
+print "Shifted Data by: " + str(datamean)
 
 
 ## Separating data into Train and Test for LSTM
@@ -85,6 +90,14 @@ y_test = data[row:, -1]
 
 X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
 X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+
+# How much data are we testing/ training with
+print "lenth test" + str(len(X_test))
+print "length train: " + str(len(train))
+
+print "X Test: "
+print X_test
+
 
 ## ----------- Defining Model -----------
 
@@ -122,28 +135,55 @@ try:
     model.fit(
         X_train, y_train,
         batch_size=len(power)/TIME_LENGTH, nb_epoch=EPOCHS, validation_split=VALIDATION_SPLIT)
+
     predicted = model.predict(X_test)
     predicted = np.reshape(predicted, (predicted.size,))
 
 except KeyboardInterrupt:
     print 'Trained in: ', time.time() - s
 
+'''
+prediction_len = 24
+prediction_seqs = []
+predicted = [0]*prediction_len
+
+initial_test = X_test[0]
+print initial_test
+
+## Predict hour then use that as estimate for next test
+for i in range(0,24):
+	predicted[i] = model.predict(initial_test)
+'''
+
+rmse = np.sqrt(((predicted[:TIME_LENGTH*7] - y_test[:TIME_LENGTH*7]) ** 2).mean())
+
+print "MSE: " + str(rmse)
 #print len(y_test)
 #print len(predicted)
 
+x_m = []
+y_m = []
+
 try:
 
-    x = predicted[:TIME_LENGTH]
-    y = y_test[:TIME_LENGTH]
-    mean = data.mean()
+    x = predicted[:TIME_LENGTH*7]
+    y = y_test[:TIME_LENGTH*7]
 
-    predicted2 = [x+1 for x in x]
-    y_test2 = [y+1 for y in y]
+    for i in x:
+    	x_m.append(i + datamean)
 
-    plt.title('24 Hour Prediction using LSTM')
+    for i in y:
+    	y_m.append(i + datamean)
+
+    print x
+    print y
+
+    plt.title('Hourly Prediction using LSTM')
     plt.plot()
-    plt.plot(predicted2)
-    plt.plot(y_test2)
+    plt.plot(x_m)
+    plt.plot(y_m)
+
+    #plt.plot(y)
     plt.legend(['Predicted Price','Actual Price'])
 
     plt.show()
